@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Music Removal</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">MUSIC REMOVAL</p>
+      <h1>Keep the voice.<br>Remove the music.</h1>
+      <p class="intro">Upload a video and get a new version with its background music removed.</p>
+
+      <section class="card">
+        <form id="upload-form">
+          <label class="drop-zone" id="drop-zone" for="video">
+            <input id="video" name="video" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm" required>
+            <span class="upload-icon">↑</span>
+            <strong id="file-label">Choose a video or drop it here</strong>
+            <small>MP4, MOV, MKV, AVI, WebM, or M4V · Maximum 500 MB</small>
+          </label>
+          <div class="actions">
+            <button id="submit-button" type="submit">Remove music</button>
+            <button id="cancel-button" class="cancel-button" type="button" hidden>Cancel upload</button>
+          </div>
+        </form>
+        <div id="progress-panel" class="progress-panel" hidden>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-label="Video processing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div class="progress-meta"><span id="progress-label">Waiting to start</span><span id="progress-value">0%</span></div>
+        </div>
+        <div id="status" class="status" aria-live="polite" hidden></div>
+      </section>
+
+      <p class="note">Music separation is not perfect. Some music artifacts or singing may remain. Files are processed on this test server.</p>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
