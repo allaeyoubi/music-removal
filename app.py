@@ -16,8 +16,10 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Literal, TypedDict
+from urllib.parse import urlparse
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import yt_dlp
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -89,6 +91,48 @@ def process_job(
         update_job(job_id, "failed", "We could not process this video. Please try another file.", 0)
 
 
+def download_and_process_job(
+    job_id: str,
+    youtube_url: str,
+    job_dir: Path,
+    output_path: Path,
+    cancel_event: threading.Event,
+) -> None:
+    source_stem = job_dir / "youtube-source"
+
+    def report_download(download_status: dict) -> None:
+        if cancel_event.is_set():
+            raise ProcessingCancelled("Processing was cancelled.")
+        if download_status.get("status") == "downloading":
+            downloaded = download_status.get("downloaded_bytes", 0)
+            total = download_status.get("total_bytes") or download_status.get("total_bytes_estimate")
+            progress = 2 if not total else min(20, max(2, int(downloaded / total * 20)))
+            update_job(job_id, "processing", "Downloading your YouTube video…", progress)
+
+    try:
+        update_job(job_id, "processing", "Connecting to YouTube…", 1)
+        options = {
+            "format": "bv*+ba/b",
+            "merge_output_format": "mp4",
+            "outtmpl": str(source_stem) + ".%(ext)s",
+            "noplaylist": True,
+            "progress_hooks": [report_download],
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(options) as downloader:
+            downloader.download([youtube_url])
+        source_candidates = sorted(job_dir.glob("youtube-source.*"))
+        if not source_candidates:
+            raise RuntimeError("YouTube did not provide a downloadable video.")
+        process_job(job_id, source_candidates[0], output_path, job_dir / "work", cancel_event)
+    except ProcessingCancelled:
+        update_job(job_id, "cancelled", "Processing was cancelled. You can upload another video whenever you are ready.", 0)
+    except Exception:
+        logger.exception("YouTube job failed for %s", job_id)
+        update_job(job_id, "failed", "We could not download or process this YouTube video.", 0)
+
+
 def finish_recovered_job(
     job_id: str,
     source_path: Path,
@@ -152,7 +196,30 @@ def home() -> HTMLResponse:
 
 
 @app.post("/api/jobs", status_code=202)
-async def create_job(video: UploadFile = File(...)) -> dict[str, str]:
+async def create_job(
+    video: UploadFile | None = File(None),
+    youtube_url: str = Form(""),
+) -> dict[str, str]:
+    youtube_url = youtube_url.strip()
+    if youtube_url:
+        parsed_url = urlparse(youtube_url)
+        if parsed_url.scheme not in {"http", "https"} or parsed_url.hostname not in {
+            "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"
+        }:
+            raise HTTPException(status_code=422, detail="Paste a valid YouTube video link.")
+
+        job_id = uuid.uuid4().hex
+        job_dir = JOBS_DIR / job_id
+        job_dir.mkdir(parents=True, exist_ok=False)
+        output_path = job_dir / "music-free-video.mp4"
+        update_job(job_id, "queued", "Your YouTube video is waiting to download.", 0)
+        cancel_event = threading.Event()
+        cancel_events[job_id] = cancel_event
+        worker.submit(download_and_process_job, job_id, youtube_url, job_dir, output_path, cancel_event)
+        return {"job_id": job_id}
+
+    if video is None:
+        raise HTTPException(status_code=422, detail="Choose a video or paste a YouTube link.")
     extension = Path(video.filename or "").suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=415, detail="Upload an MP4, MOV, MKV, AVI, WebM, or M4V video.")

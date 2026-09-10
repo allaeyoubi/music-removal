@@ -1,5 +1,6 @@
 const form = document.querySelector("#upload-form");
 const fileInput = document.querySelector("#video");
+const youtubeInput = document.querySelector("#youtube-url");
 const fileLabel = document.querySelector("#file-label");
 const button = document.querySelector("#submit-button");
 const cancelButton = document.querySelector("#cancel-button");
@@ -39,6 +40,7 @@ function resetUploadState() {
   currentJobId = null;
   uploadController = null;
   fileInput.value = "";
+  youtubeInput.value = "";
   fileLabel.textContent = "Choose a video or drop it here";
   progressPanel.hidden = true;
   hideCancel();
@@ -46,6 +48,7 @@ function resetUploadState() {
 
 function chooseFile(file) {
   if (!file) return;
+  youtubeInput.value = "";
   const transfer = new DataTransfer();
   transfer.items.add(file);
   fileInput.files = transfer.files;
@@ -55,6 +58,12 @@ function chooseFile(file) {
 }
 
 fileInput.addEventListener("change", () => chooseFile(fileInput.files[0]));
+youtubeInput.addEventListener("input", () => {
+  if (youtubeInput.value.trim()) {
+    fileInput.value = "";
+    fileLabel.textContent = "Choose a video or drop it here";
+  }
+});
 ["dragenter", "dragover"].forEach((event) => dropZone.addEventListener(event, (e) => {
   e.preventDefault();
   dropZone.classList.add("dragging");
@@ -101,7 +110,10 @@ function showError(error) {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!fileInput.files[0]) return;
+  if (!fileInput.files[0] && !youtubeInput.value.trim()) {
+    showStatus("Choose a video or paste a YouTube link.", "failed");
+    return;
+  }
   button.disabled = true;
   currentJobId = null;
   uploadController = new AbortController();

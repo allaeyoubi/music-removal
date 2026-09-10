@@ -15,11 +15,13 @@
       <section class="card">
         <form id="upload-form">
           <label class="drop-zone" id="drop-zone" for="video">
-            <input id="video" name="video" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm" required>
+            <input id="video" name="video" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm">
             <span class="upload-icon">↑</span>
             <strong id="file-label">Choose a video or drop it here</strong>
             <small>MP4, MOV, MKV, AVI, WebM, or M4V · Maximum 500 MB</small>
           </label>
+          <div class="or-divider"><span>or paste a YouTube link</span></div>
+          <input class="youtube-input" id="youtube-url" name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
           <div class="actions">
             <button id="submit-button" type="submit">Remove music</button>
             <button id="cancel-button" class="cancel-button" type="button" hidden>Cancel upload</button>

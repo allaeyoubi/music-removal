@@ -9,6 +9,10 @@ h1 { font-size: clamp(2.8rem, 8vw, 5.5rem); letter-spacing: -.07em; line-height:
 .drop-zone { min-height: 210px; display: grid; place-content: center; justify-items: center; gap: 11px; border: 1.5px dashed #657168; border-radius: 11px; text-align: center; cursor: pointer; padding: 24px; transition: .2s; }
 .drop-zone.dragging, .drop-zone:hover { border-color: #9ee493; background: #223027; }
 .drop-zone input { display: none; }
+.or-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px; color: #a8afa7; font-size: .85rem; }
+.or-divider::before, .or-divider::after { content: ""; height: 1px; flex: 1; background: #3e4540; }
+.youtube-input { width: 100%; border: 1px solid #657168; border-radius: 10px; padding: 14px 15px; background: #111315; color: #f8f5ee; font: inherit; }
+.youtube-input:focus { outline: 2px solid #9ee493; outline-offset: 2px; }
 .upload-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #9ee493; color: #102115; font-size: 1.7rem; font-weight: 800; }
 small, .note { color: #a8afa7; }
 .actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 16px; }

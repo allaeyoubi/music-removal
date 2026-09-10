@@ -57,9 +57,9 @@ Start the local website:
 python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in a browser, upload a video, wait for processing, then download the result.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in a browser, choose a video or paste a YouTube video link, wait for processing, then download the result.
 
-The upload page shows processing stages and a progress bar. The AI-separation part is animated rather than shown as an exact percentage because Demucs does not provide a reliable percentage while it analyses the audio.
+The upload page shows processing stages and a progress bar. The AI-separation part is animated rather than shown as an exact percentage because Demucs does not provide a reliable percentage while it analyses the audio. YouTube downloads can be cancelled while they are in progress.
 
 This local test version processes one video at a time and accepts files up to 500 MB. To let a friend test it from another device on the same Wi-Fi, start it with `--host 0.0.0.0` and give them your computer's local IP address. Do not expose this development server publicly; it has no accounts, rate limiting, cloud storage, or automatic deletion.
 
