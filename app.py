@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from first import ProcessingCancelled, remux, remove_background_music
 
 BASE_DIR = Path(__file__).parent
-JOBS_DIR = BASE_DIR / "data" / "jobs"
+JOBS_DIR = Path(os.getenv("MUSIC_REMOVAL_DATA_DIR", BASE_DIR / "data" / "jobs"))
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "500"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 ALLOWED_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
@@ -71,9 +71,33 @@ def process_job(
     workdir: Path,
     cancel_event: threading.Event,
 ) -> None:
+    separation_started = threading.Event()
+    separation_finished = threading.Event()
+
+    def report_separation_status() -> None:
+        started_at = time.monotonic()
+        while not separation_finished.wait(5):
+            if separation_started.is_set() and not cancel_event.is_set():
+                elapsed = int(time.monotonic() - started_at)
+                minutes, seconds = divmod(elapsed, 60)
+                with jobs_lock:
+                    current_job = jobs.get(job_id)
+                if current_job is not None and current_job["progress"] == 22:
+                    update_job(
+                        job_id,
+                        "processing",
+                        f"Separating voice from background music… ({minutes}m {seconds:02d}s)",
+                        22,
+                    )
+
+    heartbeat = threading.Thread(target=report_separation_status, daemon=True)
+    heartbeat.start()
+
     def report(message: str, progress: int) -> None:
         if cancel_event.is_set():
             raise ProcessingCancelled("Processing was cancelled.")
+        if "Separating voice" in message:
+            separation_started.set()
         update_job(job_id, "processing", message, progress)
 
     try:
@@ -89,6 +113,8 @@ def process_job(
         # Server logs retain the technical error while the browser receives a safe message.
         logger.exception("Processing failed for job %s", job_id)
         update_job(job_id, "failed", "We could not process this video. Please try another file.", 0)
+    finally:
+        separation_finished.set()
 
 
 def download_and_process_job(
@@ -111,7 +137,7 @@ def download_and_process_job(
 
     try:
         update_job(job_id, "processing", "Connecting to YouTube…", 1)
-        options = {
+        download_options = {
             "format": "bv*+ba/b",
             "merge_output_format": "mp4",
             "outtmpl": str(source_stem) + ".%(ext)s",
@@ -120,14 +146,37 @@ def download_and_process_job(
             "quiet": True,
             "no_warnings": True,
         }
-        with yt_dlp.YoutubeDL(options) as downloader:
-            downloader.download([youtube_url])
+        download_error = None
+        for client in (None, ["web_safari"]):
+            if cancel_event.is_set():
+                raise ProcessingCancelled("Processing was cancelled.")
+            for partial_file in job_dir.glob("youtube-source.*"):
+                partial_file.unlink(missing_ok=True)
+            options = download_options.copy()
+            if client is not None:
+                options["extractor_args"] = {"youtube": {"player_client": client}}
+            try:
+                with yt_dlp.YoutubeDL(options) as downloader:
+                    downloader.download([youtube_url])
+                break
+            except yt_dlp.utils.DownloadError as error:
+                download_error = error
+        else:
+            raise download_error or RuntimeError("YouTube did not provide a downloadable video.")
         source_candidates = sorted(job_dir.glob("youtube-source.*"))
         if not source_candidates:
             raise RuntimeError("YouTube did not provide a downloadable video.")
         process_job(job_id, source_candidates[0], output_path, job_dir / "work", cancel_event)
     except ProcessingCancelled:
         update_job(job_id, "cancelled", "Processing was cancelled. You can upload another video whenever you are ready.", 0)
+    except yt_dlp.utils.DownloadError as error:
+        logger.exception("YouTube job failed for %s", job_id)
+        message = str(error)
+        if "not available" in message.lower() or "no formats" in message.lower():
+            message = "YouTube does not provide a downloadable video for this link. It may be private, restricted, or unavailable."
+        else:
+            message = "YouTube could not download this link. Check that it opens normally and try again."
+        update_job(job_id, "failed", message, 0)
     except Exception:
         logger.exception("YouTube job failed for %s", job_id)
         update_job(job_id, "failed", "We could not download or process this YouTube video.", 0)

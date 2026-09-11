@@ -25,7 +25,7 @@ function updateProgress(value, label, status) {
   progressFill.style.width = `${value}%`;
   progressTrack.setAttribute("aria-valuenow", value);
   progressLabel.textContent = label;
-  progressValue.textContent = `${value}%`;
+  progressValue.textContent = status === "processing" && value === 22 ? "Working" : `${value}%`;
   progressTrack.classList.toggle("is-separating", status === "processing" && value >= 22 && value < 92);
   progressTrack.classList.toggle("is-complete", status === "complete");
 }

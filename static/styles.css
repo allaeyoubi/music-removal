@@ -25,6 +25,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .progress-panel { margin: 18px 4px 0; }
 .progress-track { height: 10px; overflow: hidden; border-radius: 99px; background: #303731; }
 .progress-fill { width: 0; height: 100%; border-radius: inherit; background: #9ee493; transition: width .45s ease; }
+.progress-track.is-separating .progress-fill { width: 100%; }
 .progress-track.is-separating .progress-fill { background: repeating-linear-gradient(120deg, #9ee493 0 14px, #c6f4bb 14px 28px); background-size: 40px 40px; animation: move-stripes 1s linear infinite; }
 .progress-track.is-complete .progress-fill { background: #9ee493; }
 .progress-meta { display: flex; justify-content: space-between; gap: 16px; margin-top: 8px; color: #a8afa7; font-size: .84rem; }
